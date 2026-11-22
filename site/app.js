@@ -249,10 +249,10 @@ __TABLE__
     map.addLayer({ id: 'route-casing', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: { 'line-color': '#ffffff', 'line-width': 6, 'line-opacity': 0.9 } });
     map.addLayer({ id: 'route', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#c4512b', 'line-width': 3 } });
+      paint: { 'line-color': '#0d47a1', 'line-width': 3.5 } });
     map.addLayer({ id: 'drop', type: 'circle', source: 'drop', paint: {
-      'circle-radius': ['match', ['get', 'k'], 'start', 5, 6], 'circle-color': ['match', ['get', 'k'], 'start', '#ffffff', '#c4512b'],
-      'circle-stroke-color': ['match', ['get', 'k'], 'start', '#c4512b', '#ffffff'], 'circle-stroke-width': 2 } });
+      'circle-radius': ['match', ['get', 'k'], 'start', 5, 6], 'circle-color': ['match', ['get', 'k'], 'start', '#ffffff', '#0d47a1'],
+      'circle-stroke-color': ['match', ['get', 'k'], 'start', '#0d47a1', '#ffffff'], 'circle-stroke-width': 2 } });
 
     map.addLayer({ id: 'deps-label', type: 'symbol', source: 'deplabels', layout: {
       'text-field': ['get', 'name'], 'text-font': ['Noto Sans Medium'], 'text-size': ['interpolate', ['linear'], ['zoom'], 5, 10.5, 8, 14],
