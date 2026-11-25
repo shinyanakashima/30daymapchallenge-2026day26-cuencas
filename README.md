@@ -6,7 +6,7 @@
 
 ![Mapa de cuencas de Paraguay](docs/screenshot.png)
 
-Video (1920×1080, 37 s): [docs/demo.mp4](https://github.com/shinyanakashima/30daymapchallenge-2026day26-cuencas/raw/main/docs/demo.mp4)
+Video (1920×1080, 36 s): [docs/demo.mp4](https://github.com/shinyanakashima/30daymapchallenge-2026day26-cuencas/raw/main/docs/demo.mp4)
 
 ## Español
 
