@@ -6,6 +6,8 @@
 
 ![Mapa de cuencas de Paraguay](docs/screenshot.png)
 
+Video (1920×1080, 37 s): [docs/demo.mp4](https://github.com/shinyanakashima/30daymapchallenge-2026day26-cuencas/raw/main/docs/demo.mp4)
+
 ## Español
 
 Paraguay redibujado por sus cuencas hidrográficas en lugar de sus departamentos. El río Paraguay atraviesa el país de norte a sur y lo divide en la Región Oriental y el Chaco; toda la lluvia que cae en Paraguay llega al Río de la Plata por el río Paraguay o por el Paraná.
