@@ -27,7 +27,9 @@
       day: 'Día 26 · Agua',
       lede: 'El río Paraguay divide el país en la Región Oriental y el Chaco. Toda la lluvia que cae aquí llega al Río de la Plata por el Paraguay o el Paraná.',
       mode_basins: 'Cuencas', mode_deps: 'Departamentos',
-      hint: 'Toca cualquier punto del mapa para seguir el camino de una gota de lluvia.',
+      hint: 'Toca uno o varios puntos del mapa para seguir el camino de las gotas de lluvia.',
+      legend: 'Colores del recorrido',
+      cat: { local: 'Cauces locales', afluente: 'Afluentes', paraguay: 'Río Paraguay', parana: 'Río Paraná', plata: 'Río de la Plata' },
       notes_btn: 'Notas y fuentes', close: 'Cerrar', map: 'Mapa',
       river: n => n === 'de la Plata' ? 'Río de la Plata' : `río ${n}`,
       River: n => n === 'de la Plata' ? 'Río de la Plata' : `Río ${n}`,
@@ -60,7 +62,9 @@
       day: 'Day 26 · Water',
       lede: 'The Paraguay River splits the country into the Eastern Region and the Chaco. Every drop of rain that falls here reaches the Río de la Plata through the Paraguay or the Paraná.',
       mode_basins: 'Basins', mode_deps: 'Departments',
-      hint: 'Tap anywhere on the map to follow a raindrop downstream.',
+      hint: 'Tap one or more points on the map to follow raindrops downstream.',
+      legend: 'Path colours',
+      cat: { local: 'Local streams', afluente: 'Tributaries', paraguay: 'Paraguay River', parana: 'Paraná River', plata: 'Río de la Plata' },
       notes_btn: 'Notes & sources', close: 'Close', map: 'Map',
       river: n => n === 'de la Plata' ? 'Río de la Plata' : `${n} River`,
       River: n => n === 'de la Plata' ? 'Río de la Plata' : `${n} River`,
@@ -169,6 +173,12 @@ __TABLE__
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   // ------------------------------------------------------------------ map
+  // colour of the raindrop path by kind of river
+  const CAT_COLORS = { local: '#a9c2d6', afluente: '#3ee6b4', paraguay: '#36c5ff', parana: '#8f86ff', plata: '#d6bcff' };
+  const CAT_ORDER = ['local', 'afluente', 'paraguay', 'parana', 'plata'];
+  const catOf = n => !n ? 'local' : n === 'Paraguay' ? 'paraguay' : n === 'Paraná' ? 'parana' : n === 'de la Plata' ? 'plata' : 'afluente';
+  const MAX_ROUTES = 6;
+
   const BASIN_COLORS = ['#b4d0db', '#cfe1e7', '#a2c3d1', '#dce8ec', '#bfd7df', '#abc8d6', '#d4e4e9'];
   const style = {
     version: 8,
@@ -260,13 +270,13 @@ __TABLE__
 
     const round = { 'line-cap': 'round', 'line-join': 'round' };
     map.addLayer({ id: 'route-halo', type: 'line', source: 'route', layout: round,
-      paint: { 'line-color': '#1e6fff', 'line-opacity': 0.35,
+      paint: { 'line-color': ['get', 'color'], 'line-opacity': 0.3,
         'line-width': ['interpolate', ['linear'], ['zoom'], 4, 9, 7, 22], 'line-blur': ['interpolate', ['linear'], ['zoom'], 4, 6, 7, 16] } });
     map.addLayer({ id: 'route-glow', type: 'line', source: 'route', layout: round,
-      paint: { 'line-color': '#45a8ff', 'line-opacity': 0.85,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 4, 5, 7, 8], 'line-blur': ['interpolate', ['linear'], ['zoom'], 4, 2.5, 7, 4] } });
+      paint: { 'line-color': ['get', 'color'], 'line-opacity': 0.95,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 4, 4, 7, 7], 'line-blur': ['interpolate', ['linear'], ['zoom'], 4, 2.5, 7, 4] } });
     map.addLayer({ id: 'route', type: 'line', source: 'route', layout: round,
-      paint: { 'line-color': '#d9f0ff', 'line-width': 2.2 } });
+      paint: { 'line-color': '#ffffff', 'line-opacity': 0.6, 'line-width': 1.2 } });
     map.addLayer({ id: 'pulse-glow', type: 'line', source: 'pulse', layout: round, paint: {
       'line-width': 16, 'line-blur': 9,
       'line-gradient': ['interpolate', ['linear'], ['line-progress'], 0, 'rgba(90,180,255,0)', 1, 'rgba(150,215,255,0.95)'] } });
@@ -274,7 +284,7 @@ __TABLE__
       'line-width': 4,
       'line-gradient': ['interpolate', ['linear'], ['line-progress'], 0, 'rgba(255,255,255,0)', 1, 'rgba(255,255,255,1)'] } });
     map.addLayer({ id: 'drop-glow', type: 'circle', source: 'drop', filter: ['==', ['get', 'k'], 'head'], paint: {
-      'circle-radius': 16, 'circle-blur': 1, 'circle-color': '#8fd0ff', 'circle-opacity': 0.8 } });
+      'circle-radius': 16, 'circle-blur': 1, 'circle-color': ['coalesce', ['get', 'color'], '#8fd0ff'], 'circle-opacity': 0.85 } });
     map.addLayer({ id: 'drop', type: 'circle', source: 'drop', paint: {
       'circle-radius': ['match', ['get', 'k'], 'start', 5, 4], 'circle-color': ['match', ['get', 'k'], 'start', '#0b1a2c', '#ffffff'],
       'circle-stroke-color': ['match', ['get', 'k'], 'start', '#9fd6ff', '#cdeaff'], 'circle-stroke-width': 2 } });
@@ -382,8 +392,7 @@ __TABLE__
   let selBasin = null, selDep = null;
   document.getElementById('panel-close').addEventListener('click', () => {
     panel.hidden = true; document.body.classList.remove('has-panel');
-    stopAnim(); map.getSource('route').setData(empty()); map.getSource('drop').setData(empty());
-    map.getSource('pulse').setData(empty()); setNight(false);
+    clearRoutes(); setNight(false);
     setSel(null, null); lastClick = null;
     map.fitBounds(PY_BOUNDS, { padding: padding(), duration: REDUCED ? 0 : 900 });
   });
@@ -462,8 +471,10 @@ __TABLE__
     while (s >= 0 && guard++ < 20000) {
       const seg = net.segs[s];
       const c = decode(seg[6]);
+      const i0 = coords.length - 1;
       for (const p of c) coords.push(p);
-      steps.push({ len: seg[1], name: seg[3] >= 0 ? net.names[seg[3]] : null, cc: seg[4] >= 0 ? net.countries[seg[4]] : '', endo: seg[5] });
+      steps.push({ len: seg[1], name: seg[3] >= 0 ? net.names[seg[3]] : null, cc: seg[4] >= 0 ? net.countries[seg[4]] : '', endo: seg[5],
+        i0, i1: coords.length - 1 });
       last = s; s = seg[0];
     }
     const lead = hav(start, coords[1]);
@@ -507,12 +518,14 @@ __TABLE__
     const km = fmt(Math.round(r.total / 10) * 10);
     const where = r.end === 'mouth' ? L.drop_to_mouth : r.end === 'endo' ? L.drop_endo : L.drop_end;
     const items = stretches(r.steps).filter(s => s.len >= 1 || s.name).map(s =>
-      `<li>${esc(s.name ? L.River(s.name) : L.local)} <span class="km">${fmt(Math.round(s.len))} km</span></li>`).join('');
+      `<li style="--dot:${CAT_COLORS[catOf(s.name)]}">${esc(s.name ? L.River(s.name) : L.local)} <span class="km">${fmt(Math.round(s.len))} km</span></li>`).join('');
+    const legend = CAT_ORDER.map(c => `<span class="key"><i style="background:${CAT_COLORS[c]}"></i>${esc(L.cat[c])}</span>`).join('');
     const cs = countrySeq(r.steps);
     const distinct = [...new Set(cs.flatMap(c => c.split('/')))].map(c => (net.country_names[c] || {})[lang] || c);
     return `<h2>${L.drop_title}</h2>
       <p class="big">${L.drop_km(km)} <small>${where}</small></p>
       <h3>${L.via}</h3><ul class="path">${items}</ul>
+      <div class="legend" aria-label="${esc(L.legend)}">${legend}</div>
       <h3>${L.countries}</h3>
       <p>${distinct.map(esc).join(', ')}</p>
       <div class="chips">${cs.map(c => `<span class="chip">${esc(countryLabel(c))}</span>`).join('<span aria-hidden="true">→</span>')}</div>
@@ -535,12 +548,8 @@ __TABLE__
     panel.hidden = false; document.body.classList.add('has-panel');
     if (silent) return;
     panel.scrollTop = 0;
-    stopAnim();
-    if (r) drawRoute(r.coords);
-    else {
-      map.getSource('route').setData(empty()); map.getSource('drop').setData(empty());
-      map.getSource('pulse').setData(empty()); setNight(false);
-    }
+    if (r) addRoute(r);
+    else if (!routes.length) setNight(false);
   }
 
   function stopAnim() { if (anim) cancelAnimationFrame(anim); anim = null; }
@@ -574,55 +583,76 @@ __TABLE__
   }
 
   function line(c) { return { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: c } }; }
-  function pts(start, head) {
-    const f = [{ type: 'Feature', properties: { k: 'start' }, geometry: { type: 'Point', coordinates: start } }];
-    if (head) f.push({ type: 'Feature', properties: { k: 'head' }, geometry: { type: 'Point', coordinates: head } });
-    return { type: 'FeatureCollection', features: f };
+
+  // ------------------------------------------------------------------ several raindrops at once
+  let routes = [];
+
+  function clearRoutes() {
+    stopAnim(); routes = [];
+    for (const id of ['route', 'drop', 'pulse']) map.getSource(id).setData(empty());
   }
 
-  function drawRoute(coords) {
-    const b = coords.reduce((bb, c) => bb.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0]));
+  function addRoute(r) {
+    const coords = r.coords;
+    const cum = [0];
+    for (let i = 1; i < coords.length; i++) cum.push(cum[i - 1] + hav(coords[i - 1], coords[i]));
+    const total = cum[cum.length - 1] || 1;
+    // stretches of one colour, as distances along the line
+    const pieces = [];
+    r.steps.forEach((st, k) => {
+      const cat = catOf(st.name), d0 = k === 0 ? 0 : cum[st.i0], d1 = cum[st.i1];
+      const last = pieces[pieces.length - 1];
+      if (last && last.cat === cat) last.d1 = d1; else pieces.push({ cat, d0, d1 });
+    });
+    routes.push({ coords, cum, total, pieces, t0: performance.now(),
+      drawDur: Math.min(5200, 1800 + total * 1.6), flowDur: Math.min(6500, 2600 + total * 1.5), tail: Math.max(60, total * 0.12) });
+    if (routes.length > MAX_ROUTES) routes.shift();
+
+    const b = new maplibregl.LngLatBounds(coords[0], coords[0]);
+    routes.forEach(rt => rt.coords.forEach(c => b.extend(c)));
     const pad = MOBILE()
       ? { top: 160, bottom: Math.round(window.innerHeight * 0.48), left: 30, right: 30 }
       : { top: 50, bottom: 50, left: 400, right: 410 };
     map.fitBounds(b, { padding: pad, duration: REDUCED ? 0 : 1100, maxZoom: 8 });
     setNight(true);
-    const src = map.getSource('route'), dsrc = map.getSource('drop'), psrc = map.getSource('pulse');
-    psrc.setData(empty());
-    if (REDUCED) { src.setData(line(coords)); dsrc.setData(pts(coords[0], null)); return; }
-    const cum = [0];
-    for (let i = 1; i < coords.length; i++) cum.push(cum[i - 1] + hav(coords[i - 1], coords[i]));
-    const total = cum[cum.length - 1] || 1;
-    const tail = Math.max(60, total * 0.12);
-    const drawDur = Math.min(5200, 1800 + total * 1.6);
-    const flowDur = Math.min(6500, 2600 + total * 1.5);
-    const gap = 700;
-    const t0 = performance.now();
-    const frame = now => {
-      const t = now - t0;
-      if (t < drawDur) {
-        // first pass: the glowing line grows behind the drop
-        const k = t / drawDur, d = (1 - Math.pow(1 - k, 2)) * total;
-        const grown = slice(coords, cum, 0, d);
-        src.setData(line(grown));
-        psrc.setData(line(slice(coords, cum, Math.max(0, d - tail), d)));
-        dsrc.setData(pts(coords[0], grown[grown.length - 1]));
-      } else {
-        // afterwards: pulses of light keep flowing downstream
-        if (t - drawDur < 50) { src.setData(line(coords)); }
-        const c = (t - drawDur) % (flowDur + gap);
-        if (c < flowDur) {
-          const k = c / flowDur, d = k * (total + tail);
-          const a = Math.max(0, d - tail), z = Math.min(total, d);
-          psrc.setData(z - a > 0.5 ? line(slice(coords, cum, a, z)) : empty());
-          dsrc.setData(pts(coords[0], d <= total ? slice(coords, cum, 0, z).pop() : null));
-        } else {
-          psrc.setData(empty()); dsrc.setData(pts(coords[0], null));
-        }
+    if (REDUCED) { render(Infinity); return; }
+    if (!anim) anim = requestAnimationFrame(loop);
+  }
+
+  function loop(now) { render(now); anim = requestAnimationFrame(loop); }
+
+  function render(now) {
+    const lines = [], pulses = [], dots = [];
+    for (const rt of routes) {
+      const t = now - rt.t0;
+      const drawing = t < rt.drawDur;
+      const d = drawing ? (1 - Math.pow(1 - t / rt.drawDur, 2)) * rt.total : rt.total;
+      for (const pc of rt.pieces) {
+        if (pc.d0 >= d) break;
+        const z = Math.min(pc.d1, d);
+        if (z - pc.d0 > 0.05) lines.push({ type: 'Feature', properties: { color: CAT_COLORS[pc.cat] },
+          geometry: { type: 'LineString', coordinates: slice(rt.coords, rt.cum, pc.d0, z) } });
       }
-      anim = requestAnimationFrame(frame);
-    };
-    anim = requestAnimationFrame(frame);
+      dots.push({ type: 'Feature', properties: { k: 'start' }, geometry: { type: 'Point', coordinates: rt.coords[0] } });
+      if (!isFinite(now)) continue;
+      let head = null;
+      if (drawing) head = d;
+      else {
+        const c = (t - rt.drawDur) % (rt.flowDur + 700);
+        if (c < rt.flowDur) head = (c / rt.flowDur) * (rt.total + rt.tail);
+      }
+      if (head === null) continue;
+      const a = Math.max(0, head - rt.tail), z = Math.min(rt.total, head);
+      if (z - a > 0.5) pulses.push(line(slice(rt.coords, rt.cum, a, z)));
+      if (head <= rt.total) {
+        const pc = rt.pieces.find(p => head <= p.d1) || rt.pieces[rt.pieces.length - 1];
+        dots.push({ type: 'Feature', properties: { k: 'head', color: CAT_COLORS[pc.cat] },
+          geometry: { type: 'Point', coordinates: slice(rt.coords, rt.cum, 0, z).pop() } });
+      }
+    }
+    map.getSource('route').setData({ type: 'FeatureCollection', features: lines });
+    map.getSource('pulse').setData({ type: 'FeatureCollection', features: pulses });
+    map.getSource('drop').setData({ type: 'FeatureCollection', features: dots });
   }
 
   window.addEventListener('keydown', e => {
