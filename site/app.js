@@ -162,7 +162,7 @@ __TABLE__
   } catch (e) { /* storage unavailable */ }
   let mode = 'cuencas';
   let net = null, grid = null, gridMeta = null;
-  let lastClick = null, anim = null;
+  let lastClick = null, anim = null, night = false;
 
   const t = () => T[lang];
   const fmt = n => new Intl.NumberFormat(lang === 'es' ? 'es-PY' : 'en-US').format(n);
@@ -218,6 +218,9 @@ __TABLE__
       { type: 'Feature', properties: { k: 'ori' }, geometry: { type: 'Point', coordinates: [-55.75, -24.75] } }] } });
     map.addSource('route', { type: 'geojson', data: empty() });
     map.addSource('drop', { type: 'geojson', data: empty() });
+    map.addSource('pulse', { type: 'geojson', data: empty(), lineMetrics: true });
+    map.addSource('night', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Polygon',
+      coordinates: [[[-90, -60], [-20, -60], [-20, 10], [-90, 10], [-90, -60]]] } } });
 
     map.addLayer({ id: 'land', type: 'fill', source: 'land', paint: {
       'fill-color': ['match', ['get', 'iso'], 'PRY', '#f5f3ee', '#ebeae4'] } });
@@ -241,18 +244,40 @@ __TABLE__
         5, ['match', ['get', 'cls'], 0, 0.35, 1, 0.7, 2, 1.2, 3, 1.9, 2.6],
         9, ['match', ['get', 'cls'], 0, 1, 1, 1.8, 2, 2.8, 3, 4, 5]] } });
 
+    // night mode: the map darkens and the water lights up
+    map.addLayer({ id: 'night', type: 'fill', source: 'night', paint: { 'fill-color': '#020812', 'fill-opacity': 0 } });
+    map.addLayer({ id: 'py-night', type: 'line', source: 'py', paint: { 'line-color': '#7f95a8', 'line-width': 1, 'line-opacity': 0 } });
+    map.addLayer({ id: 'rios-night', type: 'line', source: 'rios', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: {
+      'line-color': '#3d8fe0', 'line-opacity': 0, 'line-blur': 0.6,
+      'line-width': ['interpolate', ['linear'], ['zoom'],
+        5, ['match', ['get', 'cls'], 0, 0.4, 1, 0.7, 2, 1.1, 3, 1.6, 2.2],
+        9, ['match', ['get', 'cls'], 0, 1, 1, 1.6, 2, 2.4, 3, 3.4, 4.2]] } });
+
     map.addLayer({ id: 'basin-sel', type: 'line', source: 'cuencas', paint: {
       'line-color': '#1f2a30', 'line-width': 2.2, 'line-opacity': ['case', ['boolean', ['feature-state', 'sel'], false], 1, 0] } });
     map.addLayer({ id: 'dep-sel', type: 'line', source: 'deps', paint: {
       'line-color': '#5a4a32', 'line-width': 2.2, 'line-opacity': ['case', ['boolean', ['feature-state', 'sel'], false], 1, 0] } });
 
-    map.addLayer({ id: 'route-casing', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#ffffff', 'line-width': 6, 'line-opacity': 0.9 } });
-    map.addLayer({ id: 'route', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#0d47a1', 'line-width': 3.5 } });
+    const round = { 'line-cap': 'round', 'line-join': 'round' };
+    map.addLayer({ id: 'route-halo', type: 'line', source: 'route', layout: round,
+      paint: { 'line-color': '#1e6fff', 'line-opacity': 0.35,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 4, 9, 7, 22], 'line-blur': ['interpolate', ['linear'], ['zoom'], 4, 6, 7, 16] } });
+    map.addLayer({ id: 'route-glow', type: 'line', source: 'route', layout: round,
+      paint: { 'line-color': '#45a8ff', 'line-opacity': 0.85,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 4, 5, 7, 8], 'line-blur': ['interpolate', ['linear'], ['zoom'], 4, 2.5, 7, 4] } });
+    map.addLayer({ id: 'route', type: 'line', source: 'route', layout: round,
+      paint: { 'line-color': '#d9f0ff', 'line-width': 2.2 } });
+    map.addLayer({ id: 'pulse-glow', type: 'line', source: 'pulse', layout: round, paint: {
+      'line-width': 16, 'line-blur': 9,
+      'line-gradient': ['interpolate', ['linear'], ['line-progress'], 0, 'rgba(90,180,255,0)', 1, 'rgba(150,215,255,0.95)'] } });
+    map.addLayer({ id: 'pulse', type: 'line', source: 'pulse', layout: round, paint: {
+      'line-width': 4,
+      'line-gradient': ['interpolate', ['linear'], ['line-progress'], 0, 'rgba(255,255,255,0)', 1, 'rgba(255,255,255,1)'] } });
+    map.addLayer({ id: 'drop-glow', type: 'circle', source: 'drop', filter: ['==', ['get', 'k'], 'head'], paint: {
+      'circle-radius': 16, 'circle-blur': 1, 'circle-color': '#8fd0ff', 'circle-opacity': 0.8 } });
     map.addLayer({ id: 'drop', type: 'circle', source: 'drop', paint: {
-      'circle-radius': ['match', ['get', 'k'], 'start', 5, 6], 'circle-color': ['match', ['get', 'k'], 'start', '#ffffff', '#0d47a1'],
-      'circle-stroke-color': ['match', ['get', 'k'], 'start', '#0d47a1', '#ffffff'], 'circle-stroke-width': 2 } });
+      'circle-radius': ['match', ['get', 'k'], 'start', 5, 4], 'circle-color': ['match', ['get', 'k'], 'start', '#0b1a2c', '#ffffff'],
+      'circle-stroke-color': ['match', ['get', 'k'], 'start', '#9fd6ff', '#cdeaff'], 'circle-stroke-width': 2 } });
 
     map.addLayer({ id: 'deps-label', type: 'symbol', source: 'deplabels', layout: {
       'text-field': ['get', 'name'], 'text-font': ['Noto Sans Medium'], 'text-size': ['interpolate', ['linear'], ['zoom'], 5, 10.5, 8, 14],
@@ -310,7 +335,7 @@ __TABLE__
     map.setPaintProperty('cuencas-line', 'line-opacity', c ? 1 : 0);
     map.setPaintProperty('deps-fill', 'fill-opacity', c ? 0 : 0.9);
     map.setPaintProperty('deps-line', 'line-opacity', c ? 0 : 1);
-    map.setPaintProperty('deps-label', 'text-opacity', c ? 0 : 1);
+    map.setPaintProperty('deps-label', 'text-opacity', c || night ? 0 : 1);
     map.setPaintProperty('mask', 'fill-opacity', c ? 0.45 : 0.7);
     if (userAction && lastClick) onClick(lastClick, null, true);
   }
@@ -358,6 +383,7 @@ __TABLE__
   document.getElementById('panel-close').addEventListener('click', () => {
     panel.hidden = true; document.body.classList.remove('has-panel');
     stopAnim(); map.getSource('route').setData(empty()); map.getSource('drop').setData(empty());
+    map.getSource('pulse').setData(empty()); setNight(false);
     setSel(null, null); lastClick = null;
     map.fitBounds(PY_BOUNDS, { padding: padding(), duration: REDUCED ? 0 : 900 });
   });
@@ -511,10 +537,41 @@ __TABLE__
     panel.scrollTop = 0;
     stopAnim();
     if (r) drawRoute(r.coords);
-    else { map.getSource('route').setData(empty()); map.getSource('drop').setData(empty()); }
+    else {
+      map.getSource('route').setData(empty()); map.getSource('drop').setData(empty());
+      map.getSource('pulse').setData(empty()); setNight(false);
+    }
   }
 
   function stopAnim() { if (anim) cancelAnimationFrame(anim); anim = null; }
+
+  function setNight(on) {
+    if (night === on || !map.getLayer('night')) return;
+    night = on;
+    document.body.classList.toggle('night', on);
+    map.setPaintProperty('night', 'fill-opacity', on ? 0.87 : 0);
+    map.setPaintProperty('rios-night', 'line-opacity', on ? 0.55 : 0);
+    map.setPaintProperty('py-night', 'line-opacity', on ? 0.55 : 0);
+    map.setPaintProperty('basin-sel', 'line-color', on ? '#9cc9f0' : '#1f2a30');
+    map.setPaintProperty('dep-sel', 'line-color', on ? '#9cc9f0' : '#5a4a32');
+    map.setPaintProperty('rios-label', 'text-color', on ? '#a9d4f5' : '#1f5d7d');
+    map.setPaintProperty('rios-label', 'text-halo-color', on ? 'rgba(5,12,23,0.85)' : 'rgba(255,255,255,0.9)');
+    map.setPaintProperty('regions-label', 'text-opacity', on ? 0 : 0.75);
+    map.setPaintProperty('deps-label', 'text-opacity', on ? 0 : (mode === 'cuencas' ? 0 : 1));
+  }
+
+  // part of the polyline between distances d0 and d1 (km along the line)
+  function slice(coords, cum, d0, d1) {
+    const at = d => {
+      let i = 1;
+      while (i < coords.length - 1 && cum[i] < d) i++;
+      const a = coords[i - 1], b = coords[i], seg = cum[i] - cum[i - 1] || 1;
+      const f = Math.max(0, Math.min(1, (d - cum[i - 1]) / seg));
+      return { i, p: [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f] };
+    };
+    const s = at(d0), e = at(d1);
+    return [s.p, ...coords.slice(s.i, e.i), e.p];
+  }
 
   function line(c) { return { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: c } }; }
   function pts(start, head) {
@@ -529,26 +586,41 @@ __TABLE__
       ? { top: 160, bottom: Math.round(window.innerHeight * 0.48), left: 30, right: 30 }
       : { top: 50, bottom: 50, left: 400, right: 410 };
     map.fitBounds(b, { padding: pad, duration: REDUCED ? 0 : 1100, maxZoom: 8 });
-    const src = map.getSource('route'), dsrc = map.getSource('drop');
-    if (REDUCED) { src.setData(line(coords)); dsrc.setData(pts(coords[0], coords[coords.length - 1])); return; }
+    setNight(true);
+    const src = map.getSource('route'), dsrc = map.getSource('drop'), psrc = map.getSource('pulse');
+    psrc.setData(empty());
+    if (REDUCED) { src.setData(line(coords)); dsrc.setData(pts(coords[0], null)); return; }
     const cum = [0];
     for (let i = 1; i < coords.length; i++) cum.push(cum[i - 1] + hav(coords[i - 1], coords[i]));
     const total = cum[cum.length - 1] || 1;
-    const dur = Math.min(5200, 1800 + total * 1.6);
+    const tail = Math.max(60, total * 0.12);
+    const drawDur = Math.min(5200, 1800 + total * 1.6);
+    const flowDur = Math.min(6500, 2600 + total * 1.5);
+    const gap = 700;
     const t0 = performance.now();
-    let i = 1;
     const frame = now => {
-      const k = Math.min(1, (now - t0) / dur);
-      const e = 1 - Math.pow(1 - k, 2);
-      const d = e * total;
-      while (i < coords.length - 1 && cum[i] < d) i++;
-      const a = coords[i - 1], bpt = coords[i];
-      const seg = cum[i] - cum[i - 1] || 1;
-      const f = Math.max(0, Math.min(1, (d - cum[i - 1]) / seg));
-      const head = [a[0] + (bpt[0] - a[0]) * f, a[1] + (bpt[1] - a[1]) * f];
-      src.setData(line(coords.slice(0, i).concat([head])));
-      dsrc.setData(pts(coords[0], head));
-      anim = k < 1 ? requestAnimationFrame(frame) : null;
+      const t = now - t0;
+      if (t < drawDur) {
+        // first pass: the glowing line grows behind the drop
+        const k = t / drawDur, d = (1 - Math.pow(1 - k, 2)) * total;
+        const grown = slice(coords, cum, 0, d);
+        src.setData(line(grown));
+        psrc.setData(line(slice(coords, cum, Math.max(0, d - tail), d)));
+        dsrc.setData(pts(coords[0], grown[grown.length - 1]));
+      } else {
+        // afterwards: pulses of light keep flowing downstream
+        if (t - drawDur < 50) { src.setData(line(coords)); }
+        const c = (t - drawDur) % (flowDur + gap);
+        if (c < flowDur) {
+          const k = c / flowDur, d = k * (total + tail);
+          const a = Math.max(0, d - tail), z = Math.min(total, d);
+          psrc.setData(z - a > 0.5 ? line(slice(coords, cum, a, z)) : empty());
+          dsrc.setData(pts(coords[0], d <= total ? slice(coords, cum, 0, z).pop() : null));
+        } else {
+          psrc.setData(empty()); dsrc.setData(pts(coords[0], null));
+        }
+      }
+      anim = requestAnimationFrame(frame);
     };
     anim = requestAnimationFrame(frame);
   }

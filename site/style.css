@@ -104,3 +104,19 @@ dialog a { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) {
   .toggle button { transition: none; }
 }
+
+/* night mode while a raindrop is traced */
+.card, .linkish, .toggle, .toggle button, .lang, .chip { transition: background-color .7s, color .7s, border-color .7s; }
+body.night { --ink: #e3edf5; --muted: #93a7b8; --line: #2a3b4d; --accent: #6cb6ff; --route: #9fd6ff; }
+body.night .card { background: rgba(8, 18, 32, 0.9); color: var(--ink); box-shadow: 0 6px 24px rgba(0, 0, 0, .45); }
+body.night .lede { color: #b9c8d4; }
+body.night .toggle { background: #13243a; }
+body.night .toggle button[aria-checked="true"] { background: #23405f; color: #fff; box-shadow: none; }
+body.night .lang button[aria-pressed="true"] { background: #e3edf5; color: #0b1a2c; }
+body.night .chip { background: #16283d; }
+body.night .path li::after { background: #34506b; }
+body.night .close:hover { background: #16283d; }
+body.night .linkish { background: rgba(8, 18, 32, 0.9); color: var(--accent); }
+@media (prefers-reduced-motion: reduce) {
+  .card, .linkish, .toggle, .toggle button, .lang, .chip { transition: none; }
+}
